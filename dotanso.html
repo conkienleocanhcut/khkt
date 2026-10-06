@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đo Tần Số Va Chạm Nông Sản (Bản Nâng Cấp)</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; font-size: 24px; }
+        button { background: #4CAF50; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 5px; cursor: pointer; margin: 20px 0; width: 100%; font-weight: bold; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #status { font-size: 18px; color: #ff5722; font-weight: bold; margin-bottom: 10px; height: 25px; }
+        #result-box { background: #222; color: #00ff00; padding: 20px; border-radius: 5px; margin-top: 10px; }
+        #final-freq { font-size: 48px; font-weight: bold; margin: 10px 0; }
+        #log { text-align: left; font-size: 14px; color: #666; margin-top: 15px; max-height: 150px; overflow-y: auto; background: #eee; padding: 10px; border-radius: 5px;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Máy Đo Tần Số Va Chạm</h1>
+    <p>Nhấn nút và thả hạt liên tục vào bệ trong 5 giây.</p>
+    
+    <button id="start-btn">BẮT ĐẦU ĐO (5s)</button>
+    
+    <div id="status">Sẵn sàng</div>
+    
+    <div id
