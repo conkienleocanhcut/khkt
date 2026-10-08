@@ -26,4 +26,135 @@
     
     <div id="status">Sẵn sàng</div>
     
-    <div id
+    <div id="result-box">
+        <div>Tần số đỉnh trung bình:</div>
+        <div id="final-freq">0 Hz</div>
+        <div id="count">Số hạt phát hiện: 0</div>
+    </div>
+
+    <div id="log">Nhật ký va chạm sẽ hiện ở đây...</div>
+</div>
+
+<script>
+    let audioContext;
+    let analyser;
+    let microphone;
+    let isRecording = false;
+    let peaks = [];
+    let inCooldown = false;
+    let animationId;
+
+    // CÁC THÔNG SỐ BẠN CÓ THỂ CHỈNH SỬA TÙY THEO MÔ HÌNH THỰC TẾ
+    const RECORD_TIME = 5000; // Thời gian đo: 5000ms (5 giây)
+    const AMPLITUDE_THRESHOLD = 150; // Ngưỡng âm lượng (0-255). Chỉnh cao lên nếu máy bắt nhầm tiếng ồn phòng.
+    const COOLDOWN_TIME = 100; // Nghỉ 100ms sau mỗi tiếng đập để không bắt trùng.
+    const MIN_FREQ = 2000; // Bộ lọc chỉ lấy tần số từ 2000Hz trở lên.
+
+    const startBtn = document.getElementById('start-btn');
+    const statusText = document.getElementById('status');
+    const finalFreqText = document.getElementById('final-freq');
+    const countText = document.getElementById('count');
+    const logBox = document.getElementById('log');
+
+    async function setupAudio() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            microphone = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser();
+            
+            // Độ phân giải FFT. 8192 giúp chia nhỏ dải tần số để đo chính xác hơn.
+            analyser.fftSize = 8192; 
+            microphone.connect(analyser);
+        }
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+    }
+
+    function analyzeSound() {
+        if (!isRecording) return;
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyser.getByteFrequencyData(dataArray);
+
+        let maxVolume = -Infinity;
+        let maxIndex = -1;
+        const nyquist = audioContext.sampleRate / 2;
+        
+        // Tính toán vị trí Index tương ứng với 2000Hz trong mảng dữ liệu
+        const startIndex = Math.floor((MIN_FREQ / nyquist) * bufferLength);
+
+        // Chỉ quét các tần số từ mốc startIndex (2000Hz) trở lên, lờ đi tiếng ồn trầm
+        for (let i = startIndex; i < bufferLength; i++) {
+            if (dataArray[i] > maxVolume) {
+                maxVolume = dataArray[i];
+                maxIndex = i;
+            }
+        }
+
+        const currentFreq = (maxIndex / bufferLength) * nyquist;
+
+        // Bắt đầu lọc điều kiện: Âm lượng đủ lớn? Không trong lúc nghỉ?
+        if (maxVolume > AMPLITUDE_THRESHOLD && !inCooldown) {
+            peaks.push(currentFreq);
+            
+            // Cập nhật giao diện
+            countText.innerText = `Số hạt phát hiện: ${peaks.length}`;
+            logBox.innerHTML = `Phát hiện: ${Math.round(currentFreq)} Hz <br>` + logBox.innerHTML;
+            
+            // Kích hoạt chống rung (Debounce)
+            inCooldown = true;
+            setTimeout(() => { inCooldown = false; }, COOLDOWN_TIME);
+        }
+
+        animationId = requestAnimationFrame(analyzeSound);
+    }
+
+    startBtn.addEventListener('click', async () => {
+        try {
+            await setupAudio();
+        } catch (err) {
+            alert("Lỗi: Không thể truy cập Micro! Vui lòng cấp quyền.");
+            return;
+        }
+
+        // Reset trạng thái
+        peaks = [];
+        isRecording = true;
+        inCooldown = false;
+        startBtn.disabled = true;
+        statusText.innerText = "ĐANG THU ÂM... (Thả hạt đi!)";
+        statusText.style.color = "red";
+        finalFreqText.innerText = "...";
+        countText.innerText = "Số hạt phát hiện: 0";
+        logBox.innerHTML = "";
+
+        // Bắt đầu vòng lặp quét âm thanh
+        analyzeSound();
+
+        // Đếm ngược 5 giây để kết thúc
+        setTimeout(() => {
+            isRecording = false;
+            cancelAnimationFrame(animationId);
+            startBtn.disabled = false;
+            statusText.innerText = "HOÀN THÀNH";
+            statusText.style.color = "green";
+
+            // Tính toán trung bình cộng
+            if (peaks.length > 0) {
+                let sum = peaks.reduce((a, b) => a + b, 0);
+                let averageFreq = sum / peaks.length;
+                finalFreqText.innerText = Math.round(averageFreq) + " Hz";
+                logBox.innerHTML = `<b>Xong! Trung bình: ${Math.round(averageFreq)} Hz</b><br>` + logBox.innerHTML;
+            } else {
+                finalFreqText.innerText = "0 Hz";
+                logBox.innerHTML = "Không phát hiện va chạm nào hợp lệ.";
+            }
+        }, RECORD_TIME);
+    });
+</script>
+
+</body>
+</html>
