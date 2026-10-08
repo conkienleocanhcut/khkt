@@ -113,10 +113,11 @@
     }
 
     startBtn.addEventListener('click', async () => {
+        alert("Đã bấm nút, chuẩn bị mở Micro!"); // <--- Thêm dòng này vào
         try {
             await setupAudio();
         } catch (err) {
-            alert("Lỗi: Không thể truy cập Micro! Vui lòng cấp quyền.");
+            alert("Lỗi truy cập Micro: " + err.message); // <--- Sửa lại dòng này để máy báo rõ lỗi gì
             return;
         }
 
