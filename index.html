@@ -20,9 +20,9 @@
 
 <div class="container">
     <h1>Máy Đo Tần Số Va Chạm</h1>
-    <p>Nhấn nút và thả hạt liên tục vào bệ trong 5 giây.</p>
+    <p>Nhấn nút và thả hạt liên tục vào bệ trong 10 giây.</p>
     
-    <button id="start-btn">BẮT ĐẦU ĐO (5s)</button>
+    <button id="start-btn">BẮT ĐẦU ĐO (10s)</button>
     
     <div id="status">Sẵn sàng</div>
     
@@ -45,7 +45,7 @@
     let animationId;
 
     // CÁC THÔNG SỐ BẠN CÓ THỂ CHỈNH SỬA TÙY THEO MÔ HÌNH THỰC TẾ
-    const RECORD_TIME = 5000; // Thời gian đo: 5000ms (5 giây)
+    const RECORD_TIME = 10000; // Thời gian đo: 10000ms (10 giây)
     const AMPLITUDE_THRESHOLD = 150; // Ngưỡng âm lượng (0-255). Chỉnh cao lên nếu máy bắt nhầm tiếng ồn phòng.
     const COOLDOWN_TIME = 100; // Nghỉ 100ms sau mỗi tiếng đập để không bắt trùng.
     const MIN_FREQ = 2000; // Bộ lọc chỉ lấy tần số từ 2000Hz trở lên.
