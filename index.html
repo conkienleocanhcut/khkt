@@ -23,7 +23,7 @@
     <h1>Máy Đo Tần Số Va Chạm</h1>
     <p>Bộ lọc: > 1000Hz | Chế độ: Âm thanh mộc (Raw)</p>
     
-    <button id="start-btn">BẮT ĐẦU ĐO (5s)</button>
+    <button id="start-btn">BẮT ĐẦU ĐO (10 s)</button>
     
     <div id="status">Sẵn sàng</div>
     <!-- CÔNG CỤ DEBUG: Hiển thị âm lượng thời gian thực -->
@@ -48,7 +48,7 @@
     let animationId;
 
     // THÔNG SỐ ĐÃ ĐƯỢC ĐIỀU CHỈNH LẠI
-    const RECORD_TIME = 5000; 
+    const RECORD_TIME = 10000; 
     const AMPLITUDE_THRESHOLD = 80; // Hạ từ 150 xuống 80 để cực nhạy
     const COOLDOWN_TIME = 100; 
     const MIN_FREQ = 1000; // Hạ xuống 1000Hz theo yêu cầu
