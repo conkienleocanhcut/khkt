@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đo Tần Số Va Chạm Nông Sản (Bản Nâng Cấp)</title>
+    <title>Đo Tần Số Va Chạm Nông Sản (Bản Nhạy Bậc Cao)</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
         .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         h1 { color: #333; font-size: 24px; }
         button { background: #4CAF50; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 5px; cursor: pointer; margin: 20px 0; width: 100%; font-weight: bold; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        #status { font-size: 18px; color: #ff5722; font-weight: bold; margin-bottom: 10px; height: 25px; }
+        #status { font-size: 18px; color: #ff5722; font-weight: bold; margin-bottom: 5px; height: 25px; }
+        #live-vol { font-size: 14px; color: #0056b3; font-weight: bold; margin-bottom: 15px; }
         #result-box { background: #222; color: #00ff00; padding: 20px; border-radius: 5px; margin-top: 10px; }
         #final-freq { font-size: 48px; font-weight: bold; margin: 10px 0; }
         #log { text-align: left; font-size: 14px; color: #666; margin-top: 15px; max-height: 150px; overflow-y: auto; background: #eee; padding: 10px; border-radius: 5px;}
@@ -20,11 +21,13 @@
 
 <div class="container">
     <h1>Máy Đo Tần Số Va Chạm</h1>
-    <p>Nhấn nút và thả hạt liên tục vào bệ trong 10 giây.</p>
+    <p>Bộ lọc: > 1000Hz | Chế độ: Âm thanh mộc (Raw)</p>
     
-    <button id="start-btn">BẮT ĐẦU ĐO (10s)</button>
+    <button id="start-btn">BẮT ĐẦU ĐO (5s)</button>
     
     <div id="status">Sẵn sàng</div>
+    <!-- CÔNG CỤ DEBUG: Hiển thị âm lượng thời gian thực -->
+    <div id="live-vol">Âm lượng đo được: 0 (Ngưỡng đếm: 80)</div>
     
     <div id="result-box">
         <div>Tần số đỉnh trung bình:</div>
@@ -44,14 +47,15 @@
     let inCooldown = false;
     let animationId;
 
-    // CÁC THÔNG SỐ BẠN CÓ THỂ CHỈNH SỬA TÙY THEO MÔ HÌNH THỰC TẾ
-    const RECORD_TIME = 10000; // Thời gian đo: 10000ms (10 giây)
-    const AMPLITUDE_THRESHOLD = 150; // Ngưỡng âm lượng (0-255). Chỉnh cao lên nếu máy bắt nhầm tiếng ồn phòng.
-    const COOLDOWN_TIME = 100; // Nghỉ 100ms sau mỗi tiếng đập để không bắt trùng.
-    const MIN_FREQ = 2000; // Bộ lọc chỉ lấy tần số từ 2000Hz trở lên.
+    // THÔNG SỐ ĐÃ ĐƯỢC ĐIỀU CHỈNH LẠI
+    const RECORD_TIME = 5000; 
+    const AMPLITUDE_THRESHOLD = 80; // Hạ từ 150 xuống 80 để cực nhạy
+    const COOLDOWN_TIME = 100; 
+    const MIN_FREQ = 1000; // Hạ xuống 1000Hz theo yêu cầu
 
     const startBtn = document.getElementById('start-btn');
     const statusText = document.getElementById('status');
+    const liveVolText = document.getElementById('live-vol');
     const finalFreqText = document.getElementById('final-freq');
     const countText = document.getElementById('count');
     const logBox = document.getElementById('log');
@@ -59,18 +63,19 @@
     async function setupAudio() {
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Yêu cầu thu âm MỘC (tắt lọc ồn của điện thoại)
             const stream = await navigator.mediaDevices.getUserMedia({ 
-    audio: {
-        echoCancellation: false,
-        autoGainControl: false,
-        noiseSuppression: false
-    }, 
-    video: false 
-});
+                audio: {
+                    echoCancellation: false,
+                    autoGainControl: false,
+                    noiseSuppression: false
+                }, 
+                video: false 
+            });
+            
             microphone = audioContext.createMediaStreamSource(stream);
             analyser = audioContext.createAnalyser();
-            
-            // Độ phân giải FFT. 8192 giúp chia nhỏ dải tần số để đo chính xác hơn.
             analyser.fftSize = 8192; 
             microphone.connect(analyser);
         }
@@ -86,14 +91,13 @@
         const dataArray = new Uint8Array(bufferLength);
         analyser.getByteFrequencyData(dataArray);
 
-        let maxVolume = -Infinity;
+        let maxVolume = 0;
         let maxIndex = -1;
         const nyquist = audioContext.sampleRate / 2;
         
-        // Tính toán vị trí Index tương ứng với 2000Hz trong mảng dữ liệu
+        // Quét từ 1000Hz trở lên
         const startIndex = Math.floor((MIN_FREQ / nyquist) * bufferLength);
 
-        // Chỉ quét các tần số từ mốc startIndex (2000Hz) trở lên, lờ đi tiếng ồn trầm
         for (let i = startIndex; i < bufferLength; i++) {
             if (dataArray[i] > maxVolume) {
                 maxVolume = dataArray[i];
@@ -103,15 +107,16 @@
 
         const currentFreq = (maxIndex / bufferLength) * nyquist;
 
-        // Bắt đầu lọc điều kiện: Âm lượng đủ lớn? Không trong lúc nghỉ?
+        // Cập nhật âm lượng lên màn hình để chẩn đoán lỗi
+        liveVolText.innerText = `Âm lượng đo được: ${maxVolume} / 255`;
+
+        // Bắt đầu lọc điều kiện
         if (maxVolume > AMPLITUDE_THRESHOLD && !inCooldown) {
             peaks.push(currentFreq);
             
-            // Cập nhật giao diện
             countText.innerText = `Số hạt phát hiện: ${peaks.length}`;
-            logBox.innerHTML = `Phát hiện: ${Math.round(currentFreq)} Hz <br>` + logBox.innerHTML;
+            logBox.innerHTML = `Phát hiện: ${Math.round(currentFreq)} Hz (Âm lượng: ${maxVolume}) <br>` + logBox.innerHTML;
             
-            // Kích hoạt chống rung (Debounce)
             inCooldown = true;
             setTimeout(() => { inCooldown = false; }, COOLDOWN_TIME);
         }
@@ -120,11 +125,10 @@
     }
 
     startBtn.addEventListener('click', async () => {
-        alert("Đã bấm nút, chuẩn bị mở Micro!"); // <--- Thêm dòng này vào
         try {
             await setupAudio();
         } catch (err) {
-            alert("Lỗi truy cập Micro: " + err.message); // <--- Sửa lại dòng này để máy báo rõ lỗi gì
+            alert("Lỗi truy cập Micro: " + err.name + " - " + err.message);
             return;
         }
 
@@ -133,24 +137,24 @@
         isRecording = true;
         inCooldown = false;
         startBtn.disabled = true;
-        statusText.innerText = "ĐANG THU ÂM... (Thả hạt đi!)";
+        statusText.innerText = "ĐANG THU ÂM... (Gõ thử tua vít!)";
         statusText.style.color = "red";
         finalFreqText.innerText = "...";
         countText.innerText = "Số hạt phát hiện: 0";
         logBox.innerHTML = "";
 
-        // Bắt đầu vòng lặp quét âm thanh
+        // Bắt đầu quét
         analyzeSound();
 
-        // Đếm ngược 5 giây để kết thúc
+        // Đếm ngược 5 giây
         setTimeout(() => {
             isRecording = false;
             cancelAnimationFrame(animationId);
             startBtn.disabled = false;
             statusText.innerText = "HOÀN THÀNH";
             statusText.style.color = "green";
+            liveVolText.innerText = "Đã dừng quét âm thanh.";
 
-            // Tính toán trung bình cộng
             if (peaks.length > 0) {
                 let sum = peaks.reduce((a, b) => a + b, 0);
                 let averageFreq = sum / peaks.length;
@@ -158,7 +162,7 @@
                 logBox.innerHTML = `<b>Xong! Trung bình: ${Math.round(averageFreq)} Hz</b><br>` + logBox.innerHTML;
             } else {
                 finalFreqText.innerText = "0 Hz";
-                logBox.innerHTML = "Không phát hiện va chạm nào hợp lệ.";
+                logBox.innerHTML = "Không phát hiện tiếng va chạm nào lọt qua bộ lọc.";
             }
         }, RECORD_TIME);
     });
